@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
 import sqlite3
 
+import time
+
 import telebot
 from telebot import types
 
 import formators as form
+
+import math
 
 users_cache = {}
 
@@ -124,7 +128,7 @@ root = {
         'dreams': {
             'name': 'Список желаний',
             'content': form.dreams_formator,
-            'buttons': ['wish', 'dreams_back'],
+            'buttons': ['wish', 'wish_priority', 'dreams_back'],
             'inline_buttons': [],
             'inline_name': None,
             'inline_content': None
@@ -140,6 +144,14 @@ root = {
         'wish_cost': {
             'name': 'Добавление в список желаний',
             'content': '🤝 Напиши стоимость желаемого в рублях. Мы поможем тебе накопить эту сумму денег, исходя из ваших расходов и доходов во вкладке "Анализировать расходы".',
+            'buttons': ['wish_back'],
+            'inline_buttons': [],
+            'inline_name': None,
+            'inline_content': None
+        },
+        'wish_priority': {
+            'name': 'Измененение приоритета желания',
+            'content': '🤝 Напиши номер желания. Он указан перед каждым твоим желанием в виде: "Номер. Желание".',
             'buttons': ['wish_back'],
             'inline_buttons': [],
             'inline_name': None,
@@ -238,6 +250,10 @@ root = {
         'wish_back': {
             'name': '🚫 Отмена',
             'redirect': 'dreams'
+        },
+        'wish_priority': {
+            'name': '🔥 Изменить приоритет желания',
+            'redirect': 'wish_priority'
         }
     },
     'inline_buttons': {
@@ -247,7 +263,7 @@ root = {
         },
         'dreams': {
             'name': '✴️ Список желаний',
-            'redirect': 'wish'
+            'redirect': 'dreams'
         }
     }
 }
@@ -334,15 +350,18 @@ def new_message(message):
         except ValueError:
             bot.send_message(message.chat.id, '❌ Ты вписал не число!')
         else:
-            if round(float(message.text), 2) > 250000:
-                bot.send_message(message.chat.id, '❌ Так много!? Не верим!')
+            if math.isnan(float(message.text)):
+                bot.send_message(message.chat.id, '❌ Ты вписал не число!')
             else:
-                if round(float(message.text), 2) < 1:
-                    bot.send_message(message.chat.id, '❌ Слишком маленькое значение!')
+                if round(float(message.text), 2) > 250000:
+                    bot.send_message(message.chat.id, '❌ Так много!? Не верим!')
                 else:
-                    users_cache[message.from_user.id]['cost'] = round(float(message.text), 2)
-                    render = render_page(message, markup, inline_markup, 'transaction_category')
-                    users_cache[message.from_user.id]['page'] = 'transaction_category'
+                    if round(float(message.text), 2) < 1:
+                        bot.send_message(message.chat.id, '❌ Слишком маленькое значение!')
+                    else:
+                        users_cache[message.from_user.id]['cost'] = round(float(message.text), 2)
+                        render = render_page(message, markup, inline_markup, 'transaction_category')
+                        users_cache[message.from_user.id]['page'] = 'transaction_category'
     elif users_cache[message.from_user.id]['page'] == 'wish':
         if 32 >= len(message.text) > 1:
             users_cache[message.from_user.id]['wish_name'] = message.text
@@ -350,6 +369,46 @@ def new_message(message):
             users_cache[message.from_user.id]['page'] = 'wish_cost'
         else:
             bot.send_message(message.chat.id, '❌ Название желания должно быть от 2 до 32 символов!')
+    elif users_cache[message.from_user.id]['page'] == 'wish_cost':
+        try:
+            float(message.text)
+        except ValueError:
+            bot.send_message(message.chat.id, '❌ Ты вписал не число!')
+        else:
+            if math.isnan(float(message.text)):
+                bot.send_message(message.chat.id, '❌ Ты вписал не число!')
+            else:
+                if round(float(message.text), 2) > 1500000:
+                    bot.send_message(message.chat.id, '❌ Так много!? Не верим!')
+                else:
+                    if round(float(message.text), 2) < 10:
+                        bot.send_message(message.chat.id, '❌ Слишком маленькое значение!')
+                    else:
+                        users_cache[message.from_user.id]['wish_cost'] = round(float(message.text), 2)
+                        render = render_page(message, markup, inline_markup, 'dreams')
+                        users_cache[message.from_user.id]['page'] = 'dreams'
+    elif users_cache[message.from_user.id]['page'] == 'wish_priority':
+        try:
+            int(message.text)
+        except ValueError:
+            bot.send_message(message.chat.id, '❌ Ты вписал не число!')
+        else:
+            if math.isnan(int(message.text)):
+                bot.send_message(message.chat.id, '❌ Ты вписал не число!')
+            else:
+                with sqlite3.connect('users.db') as db:
+                    cursor = db.cursor()
+                    command = """
+                           SELECT * FROM dreams WHERE user_id = ? AND date = ? ORDER BY priority ASC
+                           """
+                    dreams = list(cursor.execute(command, [message.from_user.id, time.strftime('%m.%Y')]))
+                    cursor.close()
+                if int(message.text) > len(dreams) or int(message.text) < 1:
+                    bot.send_message(message.chat.id, '❌ Идентификатор вне диапазона твоих желаний!')
+                else:
+                    users_cache[message.from_user.id]['wish_id'] = int(message.text)
+                    render = render_page(message, markup, inline_markup, 'dreams')
+                    users_cache[message.from_user.id]['page'] = 'dreams'
     else:
         render = render_page(message, markup, inline_markup, 'not_found')
 
@@ -382,7 +441,8 @@ def button_pressed(query):
     if render is not None:
         bot.send_message(query.message.chat.id, render['answer'], reply_markup=markup, parse_mode="Markdown")
         if len(inline_markup.keyboard) > 0:
-            bot.send_message(query.message.chat.id, render['inline_answer'], reply_markup=inline_markup, parse_mode="Markdown")
+            bot.send_message(query.message.chat.id, render['inline_answer'], reply_markup=inline_markup,
+                             parse_mode="Markdown")
 
 
 bot.infinity_polling()
