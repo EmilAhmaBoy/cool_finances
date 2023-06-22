@@ -116,6 +116,20 @@ def analyse_formator(message, user_cache):
 
 def dreams_formator(message, user_cache):
     try:
+        if 'wish_id' in user_cache.keys() and 'wish_priority' in user_cache.keys():
+            with sqlite3.connect('users.db') as db:
+                cursor = db.cursor()
+                command = """
+                SELECT * FROM dreams WHERE user_id = ? ORDER BY priority ASC
+                """
+                dreams = list(cursor.execute(command, [message.from_user.id]))
+                dream_id = dreams[user_cache['wish_id'] - 1][0]
+                command = """
+                UPDATE dreams SET priority = ? WHERE id = ?
+                """
+                cursor.execute(command, [user_cache['wish_priority'] - 1, dream_id])
+                cursor.close()
+                db.commit()
         if 'wish_cost' in user_cache.keys() and 'wish_name' in user_cache.keys():
             with sqlite3.connect('users.db') as db:
                 cursor = db.cursor()
@@ -130,6 +144,12 @@ def dreams_formator(message, user_cache):
                 db.commit()
     finally:
         try:
+            del user_cache['wish_id']
+            del user_cache['wish_priority']
+        except KeyError:
+            pass
+
+        try:
             del user_cache['wish_name']
             del user_cache['wish_cost']
         except KeyError:
@@ -138,9 +158,9 @@ def dreams_formator(message, user_cache):
         with sqlite3.connect('users.db') as db:
             cursor = db.cursor()
             command = """
-            SELECT * FROM dreams WHERE user_id = ? AND date = ? ORDER BY priority ASC
+            SELECT * FROM dreams WHERE user_id = ? ORDER BY priority ASC
             """
-            dreams = list(cursor.execute(command, [message.from_user.id, time.strftime('%m.%Y')]))
+            dreams = list(cursor.execute(command, [message.from_user.id]))
             cursor.close()
         if len(dreams) > 0:
             index = 0

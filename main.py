@@ -156,6 +156,14 @@ root = {
             'inline_buttons': [],
             'inline_name': None,
             'inline_content': None
+        },
+        'wish_priority_place': {
+            'name': 'Измененение приоритета желания',
+            'content': '🤝 Напиши значение приоритета желания. Оно должно быть от 1 (наивысший приоритет) до 100 (самый низкий).',
+            'buttons': ['wish_back'],
+            'inline_buttons': [],
+            'inline_name': None,
+            'inline_content': None
         }
     },
     'buttons': {
@@ -407,8 +415,24 @@ def new_message(message):
                     bot.send_message(message.chat.id, '❌ Идентификатор вне диапазона твоих желаний!')
                 else:
                     users_cache[message.from_user.id]['wish_id'] = int(message.text)
+                    render = render_page(message, markup, inline_markup, 'wish_priority_place')
+                    users_cache[message.from_user.id]['page'] = 'wish_priority_place'
+    elif users_cache[message.from_user.id]['page'] == 'wish_priority_place':
+        try:
+            int(message.text)
+        except ValueError:
+            bot.send_message(message.chat.id, '❌ Ты вписал не число!')
+        else:
+            if math.isnan(int(message.text)):
+                bot.send_message(message.chat.id, '❌ Ты вписал не число!')
+            else:
+                if 100 >= int(message.text) >= 1:
+                    users_cache[message.from_user.id]['wish_priority'] = int(message.text)
                     render = render_page(message, markup, inline_markup, 'dreams')
                     users_cache[message.from_user.id]['page'] = 'dreams'
+                else:
+                    bot.send_message(message.chat.id, '❌ Твоё число не соответствует диапазону от 1 до 100!')
+
     else:
         render = render_page(message, markup, inline_markup, 'not_found')
 
