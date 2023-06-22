@@ -1,5 +1,6 @@
 import time
 import sqlite3
+import math
 
 categories = {
     'transaction_category_job': '💼 Работа',
@@ -67,7 +68,7 @@ def earnings_formator(message, user_cache):
             cursor.close()
 
         if len(transactions) > 0:
-            text = '🧐 Все ваши доходы и расходы за этот месяц находятся тут:\n\n'
+            text = '🧐 Все твои доходы и расходы за этот месяц находятся тут:\n\n'
             money = 0
             index = 0
             for transaction in transactions:
@@ -117,23 +118,73 @@ def analyse_formator(message, user_cache):
     with sqlite3.connect('users.db') as db:
         cursor = db.cursor()
         command = """
-        SELECT * FROM transactions WHERE user_id = ? AND date = ?
+        SELECT * FROM transactions WHERE user_id = ? ORDER BY id DESC LIMIT 50
         """
-        transactions = list(cursor.execute(command, [message.from_user.id, time.strftime('%m.%Y')]))
+        transactions = list(cursor.execute(command, [message.from_user.id]))
+        dreams = list(cursor.execute('SELECT * FROM dreams WHERE user_id = ? ORDER BY priority ASC LIMIT 1',
+                                     [message.from_user.id]))
+        dream = None
+        if len(dreams) > 0:
+            dream = dreams[0]
         cursor.close()
 
-    if len(transactions) > 5:
-        balance = 0
-        all_money = 0
+
+        start_index = None
+        if len(transactions) > 8:
+            index = 8
+            for transaction in transactions[8:]:
+                if transaction[2] > 0:
+                    while index + 1 < len(transactions) and transactions[index + 1][2] > 0:
+                        index += 1
+                    start_index = index
+                    analyse_transactions = transactions[:index]
+
+                    break
+                index += 1
+
+    transactions.reverse()
+
+    if start_index is not None:
+        payouts = {}
+        index = 0
         for transaction in transactions:
+            if transaction[2] < 0:
+                if transaction[4] not in payouts.keys():
+                    payouts[transaction[4]] = 0
+                payouts[transaction[4]] -= transaction[2]
+
+            index += 1
+
+        balance = 0
+        money_triggered = 00
+        for transaction in analyse_transactions:
             balance += transaction[2]
-            all_money += abs(transaction[2])
+            money_triggered += abs(transaction[2])
 
-        if balance / all_money > 0.1:
-            text = '😄 Всё нормально!'
+        money_percent = balance / money_triggered
+
+        text = '*Анализ доходов и расходов показал:*\n'
+
+        # Анализ доходов и расходов
+        if money_percent < 0:
+            text = text + '💡 Твои расходы начали превышать доходы! Старайся больше экономить и меньше тратить!'
+        elif money_percent < 0.1:
+            text = text + '💡 Твои расходы не превышают доходов, однако твои копления почти не растут! Старайся оставлять хотя-бы 10% от своих доходов, чтобы копить быстрее!'
+        elif money_percent > 0.9:
+            text = text + '💡 Твои доходы почти не тратятся, это хорошо, однако не бойся их тратить, главное - оставлять хотя-бы по 10% от своих доходов и тогда всё будет хорошо!'
         else:
-            text = '😕 Вы слишком много тратите! Чтобы копить деньги оставляйте хотя-бы по 10% от своего дохода.'
+            text = text + '✅ Отлично, у тебя нет проблем с коплением денег!'
 
+        # Вычисление процентов затрат
+        max_value = sum(payouts.values())
+        for payout in payouts:
+            payouts[payout] = payouts[payout] / max_value * 100
+
+        payouts = list(map(lambda c: {c: round(payouts[c], 1)}, payouts))
+
+        text = text + '\n\n*Вы тратите:*\n'
+        for payout in payouts:
+            text = text + f'{categories[list(payout.keys())[0]]}: *{list(payout.values())[0]}%*\n'
     else:
         text = '😴 Недостаточно данных для анализирования финансов'
 
