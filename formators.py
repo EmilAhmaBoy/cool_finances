@@ -1,4 +1,5 @@
 import time
+import datetime
 import sqlite3
 import math
 
@@ -40,11 +41,12 @@ def earnings_formator(message, user_cache):
             with sqlite3.connect('users.db') as db:
                 cursor = db.cursor()
                 command = """
-                INSERT INTO transactions (user_id, cost, date, category) VALUES (?, ?, ?, ?)
+                INSERT INTO transactions (user_id, cost, date, day, category) VALUES (?, ?, ?, ?, ?)
                 """
                 cursor.execute(command, [message.from_user.id,
                                          user_cache['cost'] * user_cache['multy'],
                                          time.strftime('%m.%Y'),
+                                         (datetime.date.today() - datetime.date(2023, 1, 1)).days,
                                          user_cache['category']])
                 cursor.close()
                 db.commit()
@@ -77,7 +79,7 @@ def earnings_formator(message, user_cache):
                     text = text + f'*{index + 1}.* 📈 Доход на сумму в *{str(transaction[2])}* руб.'
                 else:
                     text = text + f'*{index + 1}.* 📉 Расход на сумму в *{str(- transaction[2])}* руб.'
-                text = text + f' ({categories[transaction[4]]})\n'
+                text = text + f' ({categories[transaction[5]]})\n'
                 index += 1
             text = text + f'\n\n😉 Итого: _у вас осталось_ *{str(money)}* _рублей_'
         else:
@@ -128,7 +130,6 @@ def analyse_formator(message, user_cache):
             dream = dreams[0]
         cursor.close()
 
-
         start_index = None
         if len(transactions) > 8:
             index = 8
@@ -137,7 +138,8 @@ def analyse_formator(message, user_cache):
                     while index + 1 < len(transactions) and transactions[index + 1][2] > 0:
                         index += 1
                     start_index = index
-                    analyse_transactions = transactions[:index]
+                    day = transactions[index][4]
+                    analyse_transactions = transactions[:index + 1]
 
                     break
                 index += 1
@@ -149,14 +151,14 @@ def analyse_formator(message, user_cache):
         index = 0
         for transaction in transactions:
             if transaction[2] < 0:
-                if transaction[4] not in payouts.keys():
-                    payouts[transaction[4]] = 0
-                payouts[transaction[4]] -= transaction[2]
+                if transaction[5] not in payouts.keys():
+                    payouts[transaction[5]] = 0
+                payouts[transaction[5]] -= transaction[2]
 
             index += 1
 
         balance = 0
-        money_triggered = 00
+        money_triggered = 0
         for transaction in analyse_transactions:
             balance += transaction[2]
             money_triggered += abs(transaction[2])
@@ -167,13 +169,21 @@ def analyse_formator(message, user_cache):
 
         # Анализ доходов и расходов
         if money_percent < 0:
-            text = text + '💡 Твои расходы начали превышать доходы! Старайся больше экономить и меньше тратить!'
+            text = text + f'💡 Твои расходы начали превышать доходы (на {abs(balance)} рублей)! Старайся больше экономить и меньше тратить!\n'
+            if dream is not None:
+                text = text + '💡 Ты не можешь накопить денег на желание с текущими доходами и расходами!\n'
         elif money_percent < 0.1:
-            text = text + '💡 Твои расходы не превышают доходов, однако твои копления почти не растут! Старайся оставлять хотя-бы 10% от своих доходов, чтобы копить быстрее!'
+            text = text + '💡 Твои расходы не превышают доходов, однако твои копления почти не растут! Старайся оставлять хотя-бы 10% от своих доходов, чтобы копить быстрее!\n'
+            if dream is not None:
+                text = text + f'💡 При сохранении текущих доходов и расходов, до накопления средств на *{dream[2]}* останется *{math.ceil(float(dream[4]) / balance / float(((datetime.date.today() - datetime.date(2023, 1, 1)).days) - day + 1))}* дней\n'
         elif money_percent > 0.9:
-            text = text + '💡 Твои доходы почти не тратятся, это хорошо, однако не бойся их тратить, главное - оставлять хотя-бы по 10% от своих доходов и тогда всё будет хорошо!'
+            text = text + '💡 Твои доходы почти не тратятся, это хорошо, однако не бойся их тратить, главное - оставлять хотя-бы по 10% от своих доходов и тогда всё будет хорошо!\n'
+            if dream is not None:
+                text = text + f'💡 При сохранении текущих доходов и расходов, до накопления средств на *{dream[2]}* останется *{math.ceil(float(dream[4]) / balance / float(((datetime.date.today() - datetime.date(2023, 1, 1)).days) - day + 1))}* дней\n'
         else:
-            text = text + '✅ Отлично, у тебя нет проблем с коплением денег!'
+            text = text + '✅ Отлично, у тебя нет проблем с коплением денег!\n'
+            if dream is not None:
+                text = text + f'💡 При сохранении текущих доходов и расходов, до накопления средств на *{dream[2]}* останется *{math.ceil(float(dream[4]) / balance / float(((datetime.date.today() - datetime.date(2023, 1, 1)).days) - day + 1))}* дней\n'
 
         # Вычисление процентов затрат
         max_value = sum(payouts.values())

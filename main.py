@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS transactions (
     user_id biginteger,
     cost real,
     date text,
+    day integer,
     category text
 );
 
