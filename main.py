@@ -96,10 +96,18 @@ root = {
         'earnings': {
             'name': 'Доходы и расходы',
             'content': form.earnings_formator,
-            'buttons': ['pay-in', 'pay-out', 'main_back'],
+            'buttons': ['pay-in', 'pay-out', 'pay_clear', 'main_back'],
             'inline_buttons': ['analyse', 'dreams'],
             'inline_name': 'Услуги по финансам',
             'inline_content': '🤗 Также мы можем предложить тебе некоторые услуги по твоим доходам и расходам'
+        },
+        'transaction_clear': {
+            'name': 'Очистка дохода или расхода',
+            'content': '⚠️ Если ты нажал на кнопку случайно, то отмени очистку с помощью кнопки на клавиатуре быстрых ответов.\n\n🤝 Если же ты нажал на кнопку не случайно, то введи в чат номер транзакции или текст "всё", чтобы удалить конкретную транзакцию или все сразу соответственно.',
+            'buttons': ['transaction_back'],
+            'inline_buttons': [],
+            'inline_name': None,
+            'inline_content': None
         },
         'transaction': {
             'name': 'Введи значение',
@@ -214,6 +222,10 @@ root = {
         'pay-out': {
             'name': '📉 Внести расход',
             'redirect': 'transaction'
+        },
+        'pay_clear': {
+            'name': '🗑️ Очистить доход или расход',
+            'redirect': 'transaction_clear'
         },
         'transaction_back': {
             'name': '❌ Отмена',
@@ -382,6 +394,35 @@ def new_message(message):
                         users_cache[message.from_user.id]['cost'] = round(float(message.text), 2)
                         render = render_page(message, markup, inline_markup, 'transaction_category')
                         users_cache[message.from_user.id]['page'] = 'transaction_category'
+    elif users_cache[message.from_user.id]['page'] == 'transaction_clear':
+        if message.text.lower() in ['всё', 'all', 'все']:
+            users_cache[message.from_user.id]['transaction_clear'] = '*'
+            render = render_page(message, markup, inline_markup, 'earnings')
+            users_cache[message.from_user.id]['page'] = 'earnings'
+        else:
+            try:
+                int(message.text)
+            except ValueError:
+                bot.send_message(message.chat.id, '❌ Ты вписал не число!')
+            else:
+                if math.isnan(int(message.text)):
+                    bot.send_message(message.chat.id, '❌ Ты вписал не число!')
+                else:
+                    with sqlite3.connect('users.db') as db:
+                        cursor = db.cursor()
+                        command = """
+                               SELECT * FROM transactions WHERE user_id = ? AND date = ?
+                               """
+                        transactions = list(cursor.execute(command, [message.from_user.id, time.strftime('%m.%Y')]))
+                        cursor.close()
+
+                    if len(transactions) >= int(message.text) >= 1:
+                        users_cache[message.from_user.id]['transaction_clear'] = int(message.text)
+                        render = render_page(message, markup, inline_markup, 'earnings')
+                        users_cache[message.from_user.id]['page'] = 'earnings'
+                    else:
+                        bot.send_message(message.chat.id, '❌ Твоё число вне диапазона транзакций!')
+
     elif users_cache[message.from_user.id]['page'] == 'wish':
         if 32 >= len(message.text) > 1:
             users_cache[message.from_user.id]['wish_name'] = message.text

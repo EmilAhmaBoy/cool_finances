@@ -15,6 +15,26 @@ categories = {
 
 def earnings_formator(message, user_cache):
     try:
+        if 'transaction_clear' in user_cache.keys():
+            with sqlite3.connect('users.db') as db:
+                cursor = db.cursor()
+                if user_cache['transaction_clear'] == '*':
+                    command = """
+                    DELETE FROM transactions WHERE user_id = ?
+                    """
+                    cursor.execute(command, [message.from_user.id])
+                else:
+                    command = """
+                    SELECT * FROM transactions WHERE user_id = ? AND date = ?
+                    """
+                    transactions = list(cursor.execute(command, [message.from_user.id, time.strftime('%m.%Y')]))
+                    transaction_id = transactions[user_cache['transaction_clear'] - 1][0]
+                    command = """
+                    DELETE FROM transactions WHERE id = ?
+                    """
+                    cursor.execute(command, [transaction_id])
+                cursor.close()
+                db.commit()
         if 'category' in user_cache.keys() and 'cost' in user_cache.keys() and 'multy' in user_cache.keys():
             with sqlite3.connect('users.db') as db:
                 cursor = db.cursor()
@@ -29,11 +49,17 @@ def earnings_formator(message, user_cache):
                 db.commit()
     finally:
         try:
+            del user_cache['transaction_clear']
+        except KeyError:
+            pass
+
+        try:
             del user_cache['multy']
             del user_cache['cost']
             del user_cache['category']
         except KeyError:
             pass
+
         with sqlite3.connect('users.db') as db:
             cursor = db.cursor()
             transactions = list(cursor.execute('SELECT * FROM transactions WHERE user_id = ? AND date = ?',
