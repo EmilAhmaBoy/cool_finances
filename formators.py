@@ -116,6 +116,20 @@ def analyse_formator(message, user_cache):
 
 def dreams_formator(message, user_cache):
     try:
+        if 'wish_remove_id' in user_cache.keys():
+            with sqlite3.connect('users.db') as db:
+                cursor = db.cursor()
+                command = """
+                SELECT * FROM dreams WHERE user_id = ? ORDER BY priority ASC
+                """
+                dreams = list(cursor.execute(command, [message.from_user.id]))
+                dream_id = dreams[user_cache['wish_remove_id'] - 1][0]
+                command = """
+                DELETE FROM dreams WHERE id = ?
+                """
+                cursor.execute(command, [dream_id])
+                cursor.close()
+                db.commit()
         if 'wish_id' in user_cache.keys() and 'wish_priority' in user_cache.keys():
             with sqlite3.connect('users.db') as db:
                 cursor = db.cursor()
@@ -143,6 +157,11 @@ def dreams_formator(message, user_cache):
                 cursor.close()
                 db.commit()
     finally:
+        try:
+            del user_cache['wish_remove _id']
+        except KeyError:
+            pass
+
         try:
             del user_cache['wish_id']
             del user_cache['wish_priority']

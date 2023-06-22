@@ -128,7 +128,7 @@ root = {
         'dreams': {
             'name': 'Список желаний',
             'content': form.dreams_formator,
-            'buttons': ['wish', 'wish_priority', 'dreams_back'],
+            'buttons': ['wish', 'wish_priority', 'wish_remove', 'dreams_back'],
             'inline_buttons': [],
             'inline_name': None,
             'inline_content': None
@@ -160,6 +160,14 @@ root = {
         'wish_priority_place': {
             'name': 'Измененение приоритета желания',
             'content': '🤝 Напиши значение приоритета желания. Оно должно быть от 1 (наивысший приоритет) до 100 (самый низкий).',
+            'buttons': ['wish_back'],
+            'inline_buttons': [],
+            'inline_name': None,
+            'inline_content': None
+        },
+        'wish_remove': {
+            'name': 'Удаление желания',
+            'content': '⚠️ Если ты уже получил желаемое или у тебя пропал к нему интерес, то ты можешь смело удалять его. Если нет, то вы можете отменить удаление, нажав на кнопку на клавиатуре быстрых ответов.\n\n🤝 Если же ты действительно решил удалить желание из списка желаний, то впиши его номер в чат. Номер желания расположен перед названием желания в формате "Номер. Желание".',
             'buttons': ['wish_back'],
             'inline_buttons': [],
             'inline_name': None,
@@ -262,6 +270,10 @@ root = {
         'wish_priority': {
             'name': '🔥 Изменить приоритет желания',
             'redirect': 'wish_priority'
+        },
+        'wish_remove': {
+            'name': '💥 Удалить желание из списка желаний',
+            'redirect': 'wish_remove'
         }
     },
     'inline_buttons': {
@@ -407,9 +419,9 @@ def new_message(message):
                 with sqlite3.connect('users.db') as db:
                     cursor = db.cursor()
                     command = """
-                           SELECT * FROM dreams WHERE user_id = ? AND date = ? ORDER BY priority ASC
+                           SELECT * FROM dreams WHERE user_id = ? ORDER BY priority ASC
                            """
-                    dreams = list(cursor.execute(command, [message.from_user.id, time.strftime('%m.%Y')]))
+                    dreams = list(cursor.execute(command, [message.from_user.id]))
                     cursor.close()
                 if int(message.text) > len(dreams) or int(message.text) < 1:
                     bot.send_message(message.chat.id, '❌ Идентификатор вне диапазона твоих желаний!')
@@ -432,7 +444,28 @@ def new_message(message):
                     users_cache[message.from_user.id]['page'] = 'dreams'
                 else:
                     bot.send_message(message.chat.id, '❌ Твоё число не соответствует диапазону от 1 до 100!')
-
+    elif users_cache[message.from_user.id]['page'] == 'wish_remove':
+        try:
+            int(message.text)
+        except ValueError:
+            bot.send_message(message.chat.id, '❌ Ты вписал не число!')
+        else:
+            if math.isnan(int(message.text)):
+                bot.send_message(message.chat.id, '❌ Ты вписал не число!')
+            else:
+                with sqlite3.connect('users.db') as db:
+                    cursor = db.cursor()
+                    command = """
+                           SELECT * FROM dreams WHERE user_id = ? ORDER BY priority ASC
+                           """
+                    dreams = list(cursor.execute(command, [message.from_user.id]))
+                    cursor.close()
+                if int(message.text) > len(dreams) or int(message.text) < 1:
+                    bot.send_message(message.chat.id, '❌ Идентификатор вне диапазона твоих желаний!')
+                else:
+                    users_cache[message.from_user.id]['wish_remove_id'] = int(message.text)
+                    render = render_page(message, markup, inline_markup, 'dreams')
+                    users_cache[message.from_user.id]['page'] = 'dreams'
     else:
         render = render_page(message, markup, inline_markup, 'not_found')
 
