@@ -11,7 +11,9 @@ categories = {
     'transaction_category_entertainment': '🎉 Развлечения',
     'transaction_category_food': '🍔 Еда',
     'transaction_category_knowledges': '🎓 Учёба',
-    'transaction_category_item': '🚲 Вещь'
+    'transaction_category_item': '🚲 Вещь',
+    'transaction_category_transport': '🚕 Транспорт',
+    'transaction_category_products': '🍎 Продукты'
 }
 
 
@@ -109,7 +111,9 @@ def transaction_category_formator(message, user_cache):
         buttons = ['transaction_category_entertainment',
                    'transaction_category_food',
                    'transaction_category_knowledges',
-                   'transaction_category_item']
+                   'transaction_category_item',
+                   'transaction_category_transport',
+                   'transaction_category_products']
 
     buttons.append('transaction_back')
 
@@ -175,15 +179,15 @@ def analyse_formator(message, user_cache):
         elif money_percent < 0.1:
             text = text + '💡 Твои расходы не превышают доходов, однако твои копления почти не растут! Старайся оставлять хотя-бы 10% от своих доходов, чтобы копить быстрее!\n'
             if dream is not None:
-                text = text + f'💡 При сохранении текущих доходов и расходов, до накопления средств на *{dream[2]}* останется *{math.ceil(float(dream[4]) / balance / float(((datetime.date.today() - datetime.date(2023, 1, 1)).days) - day + 1))}* дней\n'
+                text = text + f'💡 При сохранении текущих доходов и расходов, до накопления средств на *{dream[2]}* останется *{math.ceil(float(dream[4]) / balance * float(((datetime.date.today() - datetime.date(2023, 1, 1)).days) - day + 1))}* дней\n'
         elif money_percent > 0.9:
             text = text + '💡 Твои доходы почти не тратятся, это хорошо, однако не бойся их тратить, главное - оставлять хотя-бы по 10% от своих доходов и тогда всё будет хорошо!\n'
             if dream is not None:
-                text = text + f'💡 При сохранении текущих доходов и расходов, до накопления средств на *{dream[2]}* останется *{math.ceil(float(dream[4]) / balance / float(((datetime.date.today() - datetime.date(2023, 1, 1)).days) - day + 1))}* дней\n'
+                text = text + f'💡 При сохранении текущих доходов и расходов, до накопления средств на *{dream[2]}* останется *{math.ceil(float(dream[4]) / balance * float(((datetime.date.today() - datetime.date(2023, 1, 1)).days) - day + 1))}* дней\n'
         else:
             text = text + '✅ Отлично, у тебя нет проблем с коплением денег!\n'
             if dream is not None:
-                text = text + f'💡 При сохранении текущих доходов и расходов, до накопления средств на *{dream[2]}* останется *{math.ceil(float(dream[4]) / balance / float(((datetime.date.today() - datetime.date(2023, 1, 1)).days) - day + 1))}* дней\n'
+                text = text + f'💡 При сохранении текущих доходов и расходов, до накопления средств на *{dream[2]}* останется *{math.ceil(float(dream[4]) / balance * float(((datetime.date.today() - datetime.date(2023, 1, 1)).days) - day + 1))}* дней\n'
 
         # Вычисление процентов затрат
         max_value = sum(payouts.values())
