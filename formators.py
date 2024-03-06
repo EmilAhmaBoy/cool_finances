@@ -75,8 +75,14 @@ def earnings_formator(message, user_cache):
             text = '🧐 Все твои доходы и расходы за этот месяц находятся тут:\n\n'
             money = 0
             index = 0
+            last_date = None
             for transaction in transactions:
+                day = transaction[4]
+                date = datetime.date(2023, 1, 1) + datetime.timedelta(days=day)
                 money += transaction[2]
+                if last_date != date:
+                    last_date = date
+                    text = text + f'• Дата: *{date.strftime("%d.%m.%Y")}*\n'
                 if transaction[2] > 0:
                     text = text + f'*{index + 1}.* 📈 Доход на сумму в *{str(transaction[2])}* руб.'
                 else:
