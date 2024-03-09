@@ -257,7 +257,7 @@ def dreams_formator(message, user_cache):
                 db.commit()
     finally:
         try:
-            del user_cache['wish_remove _id']
+            del user_cache['wish_remove_id']
         except KeyError:
             pass
 
