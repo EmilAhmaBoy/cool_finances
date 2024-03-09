@@ -258,6 +258,10 @@ root = {
             'name': '🍎 Продукты',
             'redirect': 'earnings'
         },
+        'transaction_category_clothes': {
+            'name': '👕 Одежда',
+            'redirect': 'earnings'
+        },
         'transaction_category_job': {
             'name': '💼 Работа',
             'redirect': 'earnings'

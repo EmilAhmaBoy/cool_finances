@@ -13,7 +13,8 @@ categories = {
     'transaction_category_knowledges': '🎓 Учёба',
     'transaction_category_item': '🚲 Вещь',
     'transaction_category_transport': '🚕 Транспорт',
-    'transaction_category_products': '🍎 Продукты'
+    'transaction_category_products': '🍎 Продукты',
+    'transaction_category_clothes': '👕 Одежда'
 }
 
 
@@ -119,7 +120,8 @@ def transaction_category_formator(message, user_cache):
                    'transaction_category_knowledges',
                    'transaction_category_item',
                    'transaction_category_transport',
-                   'transaction_category_products']
+                   'transaction_category_products',
+                   'transaction_category_clothes']
 
     buttons.append('transaction_back')
 
